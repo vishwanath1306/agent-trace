@@ -26,23 +26,25 @@ jobs:
             | sed 's/.*"\(.*\)"/\1/')
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Compute release tag
-        id: tag
+      - name: Check if release already exists
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          # Append short SHA if a tag for this exact version already exists,
-          # so rapid merges never collide on the same tag.
-          if git rev-parse "v${VERSION}" >/dev/null 2>&1; then
-            SHORT_SHA=$(git rev-parse --short HEAD)
-            TAG="v${VERSION}-${SHORT_SHA}"
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $TAG already exists — skipping."
           else
-            TAG="v${VERSION}"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Build changelog
+        if: steps.check.outputs.exists == 'false'
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          LAST_TAG=$(git describe --tags --abbrev=0 --exclude="${{ steps.check.outputs.tag }}" 2>/dev/null || echo "")
           if [ -z "$LAST_TAG" ]; then
             git log --pretty=format:"- %s" HEAD | head -20 > /tmp/changelog.txt
           else
@@ -50,10 +52,11 @@ jobs:
           fi
 
       - name: Create GitHub Release
+        if: steps.check.outputs.exists == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG="${{ steps.tag.outputs.tag }}"
+          TAG="${{ steps.check.outputs.tag }}"
           gh release create "$TAG" \
             --title "$TAG" \
             --notes-file /tmp/changelog.txt \
