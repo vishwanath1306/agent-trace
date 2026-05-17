@@ -8,7 +8,7 @@
 [![Open VSX](https://img.shields.io/open-vsx/v/Siddhant-K-code/agent-strace)](https://open-vsx.org/extension/Siddhant-K-code/agent-strace)
 [![VS Marketplace](https://img.shields.io/badge/VS%20Marketplace-v0.1.2-blue?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=Siddhant-K-code.agent-strace)
 
-`strace` for AI agents. Capture and replay every tool call, prompt, and response from Claude Code, Cursor, Gemini CLI, or any MCP client — then analyse, diff, audit, and share what happened.
+`strace` for AI agents. Capture and replay every tool call, prompt, and response from Claude Code, Cursor, Gemini CLI, or any MCP client. Analyse, diff, audit, and share what happened.
 
 ![demo](assets/demo.svg)
 
@@ -16,9 +16,9 @@
 
 A coding agent rewrites 20 files in a background session. You get a pull request. You do not get the story. Which files did it read first? Why did it call the same tool three times? What failed before it found the fix?
 
-Most tools trace LLM calls. That is one layer. The gap is everything around it: tool calls, file operations, decision points, error recovery, the actual commands the agent ran. `agent-strace` captures the full session and lets you replay it later. Export to Datadog, Honeycomb, New Relic, or Splunk when you need production observability.
+Most tools trace LLM calls. That is one layer. The gap is everything around it: tool calls, file operations, decision points, error recovery, the actual commands the agent ran. `agent-strace` captures the full session and lets you replay it later. Export to Datadog, Honeycomb, New Relic, or Splunk for production observability.
 
-Set rules to stop the agent automatically — cost ceiling, wrong file touched, too many tool calls. The agent stops. No prompt, no retry, no damage.
+Set rules to stop the agent: cost ceiling, wrong file touched, too many tool calls. The agent stops. No prompt, no retry, no damage.
 
 ## Install
 
@@ -49,7 +49,7 @@ Install the **agent-strace** extension to see live session activity without leav
 |---|---|
 | Status bar | Live cost, tool call count, and active tool name. Click to open the event stream. |
 | Gutter annotations | Blue border on files the agent read, amber on files it modified. Inline label shows read/write counts. |
-| Event stream panel | Live feed in the Explorer sidebar — every tool call, file op, LLM request, and error. |
+| Event stream panel | Live feed in the Explorer sidebar: every tool call, file op, LLM request, and error. |
 | Pause button | Stops the agent mid-session via SIGSTOP. Requires `agent-strace watch` running in a terminal. |
 
 **Setup:**
@@ -69,7 +69,7 @@ agent-strace setup
 
 The extension activates automatically when a `.agent-traces/` directory exists in the workspace root. No configuration required.
 
-**Pause / resume** (optional — requires watch running):
+**Pause / resume** (optional, requires watch running):
 
 ```bash
 # In a separate terminal, start the watcher
@@ -165,7 +165,7 @@ print(f"Replay with: agent-strace replay {meta.session_id}")
 | `inspect` | Show raw events for a session |
 | `stats` | Summary stats for a session |
 | `eval` | Score a session against configurable criteria |
-| `eval ci` | CI gate — exits non-zero if any scorer fails |
+| `eval ci` | CI gate, exits non-zero if any scorer fails |
 | `eval compare` | Compare two sessions side by side |
 | `drift` | Detect behavioral drift across sessions |
 | `optimize` | Propose AGENTS.md improvements from trace failures |
@@ -185,7 +185,7 @@ print(f"Replay with: agent-strace replay {meta.session_id}")
 | `inflation` | Token inflation across model versions |
 | `curve` | Personal cost-efficiency curve |
 | `a2a-tree` | Cross-agent trace correlation (A2A protocol) |
-| `mcp` | MCP server — expose traces as queryable tools for a debugging agent |
+| `mcp` | MCP server: expose traces as queryable tools for a debugging agent |
 
 ```
 agent-strace setup [--redact] [--global]        Generate Claude Code hooks config
@@ -245,7 +245,7 @@ Claude Code stores session logs in `~/.claude/projects/`. The import captures to
 
 ### Explain a session
 
-Get a plain-English breakdown of what the agent did, organized by phase, with retry and wasted-time detection:
+Plain-English breakdown of what the agent did, organized by phase, with retry and wasted-time detection:
 
 ```bash
 agent-strace explain           # latest session
@@ -271,7 +271,7 @@ Retries: 1 (wasted 1m 15s, 60% of session)
 
 ### Estimate cost
 
-Break down estimated token usage and dollar cost by phase. Flags wasted spend on failed phases.
+Token usage and dollar cost by phase. Flags wasted spend on failed phases.
 
 ```bash
 agent-strace cost                          # latest session, sonnet pricing
@@ -296,7 +296,7 @@ See [examples/session_analysis.md](examples/session_analysis.md) for a full walk
 
 ### Secret redaction
 
-Pass `--redact` to strip API keys, tokens, and credentials from traces before they hit disk.
+Strip API keys, tokens, and credentials from traces before they hit disk.
 
 ```bash
 # Stdio proxy with redaction
@@ -310,7 +310,7 @@ Detected patterns: OpenAI (`sk-*`), GitHub (`ghp_*`, `github_pat_*`), AWS (`AKIA
 
 ### HTTP/SSE proxy
 
-For MCP servers that use HTTP transport instead of stdio:
+For MCP servers that use HTTP transport:
 
 ```bash
 # Proxy a remote MCP server
@@ -548,7 +548,7 @@ Diverged at phase 2:
 
 ### Causal chain (why)
 
-Trace backwards from any event to find what caused it. Run `agent-strace replay <session-id>` first — the `#N` numbers in the left column are the event numbers:
+Trace backwards from any event to find what caused it. Run `agent-strace replay <session-id>` first. The `#N` numbers in the left column are the event numbers:
 
 ```bash
 agent-strace why abc123 4
@@ -572,7 +572,7 @@ Causal links are detected via `parent_id` (tool_result → tool_call), error→r
 
 ### Permission audit
 
-Check every tool call in a session against a policy file. Auto-flags sensitive file access (`.env`, `*.pem`, `.ssh/*`, `.github/workflows/*`, etc.) even without a policy:
+Check every tool call against a policy file. Flags sensitive file access (`.env`, `*.pem`, `.ssh/*`, `.github/workflows/*`, etc.) even without a policy:
 
 ```bash
 agent-strace audit                          # latest session, no policy required
@@ -600,7 +600,7 @@ AUDIT: Session abc123 (47 events, 23 tool calls)
   Read .env  (event #12)
 ```
 
-Exits with code 1 when violations are found — usable in CI.
+Exits with code 1 when violations are found. Usable in CI.
 
 **Policy file** (`.agent-scope.json`):
 
@@ -622,7 +622,7 @@ Glob patterns support `**` as a recursive wildcard. File read policy applies to 
 
 ### Auto-generate a policy from your traces
 
-Instead of writing `.agent-scope.json` by hand, let agent-trace observe a few sessions and generate one for you:
+Let agent-trace observe a few sessions and generate `.agent-scope.json` for you:
 
 ```bash
 # Dry-run: print the suggested policy without writing anything
@@ -635,11 +635,11 @@ agent-strace policy --output .agent-scope.json
 agent-strace policy --last 20 --output .agent-scope.json
 ```
 
-The generated policy covers every file path and command the agent actually used, collapsed into glob patterns. Review it, tighten the deny list, then commit it alongside your code.
+The generated policy covers every file path and command the agent used, collapsed into glob patterns. Review it, tighten the deny list, and commit it alongside your code.
 
 ### Optimize instruction files from trace failures
 
-Analyze sessions or datasets, cluster failures by root cause, and propose concrete additions to `AGENTS.md`, `CLAUDE.md`, or any instruction file. Three built-in heuristic patterns require no LLM.
+Cluster failures by root cause and propose concrete additions to `AGENTS.md`, `CLAUDE.md`, or any instruction file. Three built-in heuristic patterns require no LLM.
 
 ```bash
 # Show proposed additions to AGENTS.md (dry run, no writes)
@@ -671,7 +671,7 @@ When `OPENAI_API_KEY` and `OPENAI_BASE_URL` are set (or `--api-key` / `--base-ur
 
 ### PII masking
 
-Sensitive data is masked before it hits disk. Useful when tracing agents that handle user data, credentials, or anything you wouldn't want in a log file.
+Sensitive data is masked before it hits disk. Useful when tracing agents that handle user data or credentials.
 
 ```bash
 # Stdio proxy with masking
@@ -685,7 +685,7 @@ Masked by default: email addresses, phone numbers, credit card numbers, US Socia
 
 ### Eval scoring
 
-Score a session against configurable criteria. Built-in scorers require no LLM — they run on trace structure alone.
+Score a session against configurable criteria. Built-in scorers require no LLM. They run on trace structure alone.
 
 ```bash
 # Score the latest session (uses .agent-evals.yaml if present)
@@ -748,7 +748,7 @@ Exits non-zero if any scorer fails. Add to GitHub Actions:
 
 ### Multi-session dashboard
 
-Get an aggregate view across all your sessions — useful for spotting trends, outliers, and cost spikes without opening each session individually.
+Get an aggregate view across all your sessions. Useful for spotting trends, outliers, and cost spikes without opening each session individually.
 
 ```bash
 agent-strace dashboard                    # all sessions
@@ -757,11 +757,11 @@ agent-strace dashboard --since 2024-06-01 # since a date
 agent-strace dashboard --html report.html # self-contained HTML export
 ```
 
-The terminal view shows total tool calls, errors, tokens, and estimated cost, plus ASCII sparkline charts for each metric over time and a top-tools frequency table. The HTML export is self-contained — no server needed.
+The terminal view shows total tool calls, errors, tokens, and estimated cost, plus ASCII sparkline charts for each metric over time and a top-tools frequency table. The HTML export is self-contained. No server needed.
 
 ### Eval trend dashboard
 
-See whether your agent is getting better or worse over time. Reads eval scores from `agent-strace eval` and behavioral metrics from session events, then renders a self-contained HTML report with inline SVG charts.
+See whether your agent is getting better or worse over time. Reads eval scores and behavioral metrics from session events, then renders a self-contained HTML report with inline SVG charts.
 
 ```bash
 # Terminal summary
@@ -779,11 +779,11 @@ The HTML report shows:
 - **Behavioral metrics**: error rate, retry rate, cost, session duration as sparklines
 - **Recent sessions table**: eval scores inline, click any row to open the full replay
 
-The file is fully self-contained — attach it to a PR, commit it as a weekly snapshot, or share it with someone who doesn't have agent-strace installed.
+The file is fully self-contained. Attach it to a PR, commit it as a weekly snapshot, or share it with someone who doesn't have agent-strace installed.
 
 ### Session attribution
 
-Every session records who and what spawned it. When you open a trace you'll see the OS user, the detected agent provider, the git repo and branch, and the chain of parent processes.
+Every session records who and what spawned it: OS user, detected agent provider, git repo and branch, and the chain of parent processes.
 
 ```bash
 agent-strace show SESSION_ID
@@ -795,11 +795,11 @@ agent-strace show SESSION_ID
 #   CWD:      /home/alice/projects/myapp
 ```
 
-Detected providers: `claude-code`, `cursor`, `github-copilot`, `cody`, `continue`, and a generic `mcp-client` fallback. Attribution is collected automatically — nothing to configure.
+Detected providers: `claude-code`, `cursor`, `github-copilot`, `cody`, `continue`, and a generic `mcp-client` fallback. Attribution is collected automatically. Nothing to configure.
 
 ### Replay annotations
 
-Add notes, labels, and bookmarks to any event in a recorded session. Useful for code review, debugging, and building eval datasets.
+Add notes, labels, and bookmarks to any event. Useful for code review, debugging, and building eval datasets.
 
 ```bash
 # Add a note to event #12
@@ -818,11 +818,11 @@ agent-strace annotate SESSION_ID --list
 agent-strace annotate SESSION_ID 12 --delete ANNOTATION_ID
 ```
 
-Annotations persist alongside the session and appear as a bookmarks sidebar in shared HTML reports. They're also useful for building eval datasets — label sessions as `pass` / `fail` / `interesting` and filter on those labels later.
+Annotations persist alongside the session and appear as a bookmarks sidebar in shared HTML reports. They're also useful for building eval datasets: label sessions as `pass` / `fail` / `interesting` and filter on those labels later.
 
 ### Token budget tracking
 
-Long-running agents can silently burn through a model's context window. The token budget command shows how close you are and warns before you hit the limit.
+Long-running agents can burn through a model's context window without warning. The token budget command shows how close you are before you hit the limit.
 
 ```bash
 agent-strace token-budget SESSION_ID
@@ -850,7 +850,7 @@ Pass `--limit` to set a custom ceiling for any other model.
 
 ### Semantic session diff
 
-Compare two sessions by *outcome* rather than raw event order. Useful for regression testing agent behaviour across model versions or prompt changes.
+Compare two sessions by *outcome*, not raw event order. Useful for regression testing agent behaviour across model versions or prompt changes.
 
 ```bash
 agent-strace diff SESSION_A SESSION_B --semantic
@@ -875,7 +875,7 @@ agent-strace diff SESSION_A SESSION_B --semantic --eval-config eval.json
 
 ### Rich side-by-side comparison
 
-`--compare` produces a structured table across cost, duration, tool calls, redundant reads, context resets, files modified, and errors — with a deterministic verdict requiring no LLM.
+`--compare` produces a structured table across cost, duration, tool calls, redundant reads, context resets, files modified, and errors. The verdict is deterministic and requires no LLM.
 
 ```bash
 agent-strace diff SESSION_A SESSION_B --compare
@@ -885,7 +885,7 @@ New metrics: **redundant reads** (files read more than once), **context resets**
 
 ### Kill switch for runaway sessions
 
-Add a declarative rules file to `agent-strace watch` to pause, kill, or alert when a session crosses a threshold. The agent stops when a rule fires — no prompt, no retry, no damage.
+Add a declarative rules file to `agent-strace watch` to pause, kill, or alert when a session crosses a threshold. The agent stops when a rule fires. No prompt, no retry, no damage.
 
 ```bash
 agent-strace watch --rules .watch-rules.json
@@ -905,13 +905,13 @@ Example `.watch-rules.json`:
 **Rule conditions:** `files_modified`, `cost_usd`, `consecutive_test_failures`, `duration_minutes`, `file_path` (glob).
 
 **Actions:**
-- `pause` — SIGSTOP the agent process (resume with SIGCONT)
-- `kill` — SIGTERM, then SIGKILL after 5s; auto-generates a postmortem
-- `alert` — log only, no interruption
+- `pause`: SIGSTOP the agent process (resume with SIGCONT)
+- `kill`: SIGTERM, then SIGKILL after 5s; auto-generates a postmortem
+- `alert`: log only, no interruption
 
 ### Behavioral drift detection
 
-Detect when agent behavior has shifted across sessions — without an LLM. Computes a behavioral fingerprint (tool mix, error rate, retry pattern, blast radius, session duration, decision depth) and measures how much the current window has diverged from a baseline using Jensen-Shannon divergence.
+Detect when agent behavior has shifted across sessions without an LLM. Computes a behavioral fingerprint across six dimensions (tool mix, error rate, retry pattern, blast radius, session duration, decision depth) and measures divergence from a baseline using Jensen-Shannon divergence.
 
 ```bash
 # Detect drift over the last 30 days (splits window in half automatically)
@@ -927,7 +927,7 @@ agent-strace drift --since 30d --save-baseline .agent-traces/baselines/behavior-
 agent-strace drift --since 30d --format json
 ```
 
-Exits non-zero when the overall drift score exceeds `--threshold` (default: `0.20`). Commit baseline fingerprints alongside your agent config — they're under 2KB.
+Exits non-zero when the overall drift score exceeds `--threshold` (default: `0.20`). Commit baseline fingerprints alongside your agent config. They're under 2KB.
 
 Six dimensions tracked:
 
@@ -942,29 +942,29 @@ Six dimensions tracked:
 
 ### Shadow MCP detection
 
-Detect Shadow MCP servers and undeclared agent activity in any repo — no network calls, no API keys. A [CSA survey of 418 security professionals](https://cloudsecurityalliance.org/press-releases/2026/04/21/new-cloud-security-alliance-survey-reveals-82-of-enterprises-have-unknown-ai-agents-in-their-environments) found 82% of enterprises discovered at least one AI agent their security team didn't know about in the past year. `audit-tools` finds yours.
+Detect Shadow MCP servers and undeclared agent activity in any repo. No network calls, no API keys. A [CSA survey of 418 security professionals](https://cloudsecurityalliance.org/press-releases/2026/04/21/new-cloud-security-alliance-survey-reveals-82-of-enterprises-have-unknown-ai-agents-in-their-environments) found 82% of enterprises discovered at least one AI agent their security team didn't know about in the past year. `audit-tools` finds yours.
 
 ```bash
 agent-strace audit-tools
 agent-strace audit-tools --repo . --since "90 days ago" --approved cursor,copilot
 ```
 
-Detected tools: Claude Code, Cursor, GitHub Copilot, Codex/ChatGPT, Windsurf, Aider, Gemini CLI — identified via file signals (`.cursorrules`, `CLAUDE.md`, `.github/copilot-instructions.md`, etc.) and commit message patterns. Flags unapproved tools, unknown LLM API endpoints in `.env` history, and PII patterns in recently committed files.
+Detected tools: Claude Code, Cursor, GitHub Copilot, Codex/ChatGPT, Windsurf, Aider, Gemini CLI. Identified via file signals (`.cursorrules`, `CLAUDE.md`, `.github/copilot-instructions.md`, etc.) and commit message patterns. Flags unapproved tools, unknown LLM API endpoints in `.env` history, and PII patterns in recently committed files.
 
 ### HTML session replay viewer
 
-Generate a single-file HTML viewer for any session. No server, no dependencies — open in any browser.
+Generate a single-file HTML viewer for any session. No server, no dependencies. Open in any browser.
 
 ```bash
 agent-strace replay --format html
 agent-strace replay --format html --output review.html SESSION_ID
 ```
 
-The viewer includes an animated event timeline, scrubber bar, running cost counter, click-to-expand event detail, color-coded event types, and dark theme. All event data is embedded as a JSON constant — useful for attaching to PR reviews.
+The viewer includes an animated event timeline, scrubber bar, running cost counter, click-to-expand event detail, color-coded event types, and dark theme. All event data is embedded as a JSON constant. Useful for attaching to PR reviews.
 
 ### Standup report
 
-Generate a structured standup from a session trace — no LLM call required.
+Generate a structured standup from a session trace. No LLM required.
 
 ```bash
 agent-strace standup
@@ -975,7 +975,7 @@ Report covers: files read and modified, approaches tried (including abandoned on
 
 ### Context freshness check
 
-Before handing a task to an agent, check how stale its last view of the codebase is.
+Check how stale the agent's last view of the codebase is before handing it a task.
 
 ```bash
 agent-strace freshness
@@ -986,7 +986,7 @@ Reports files changed since the last session, per-file change type and line coun
 
 ### On-call readiness
 
-Cross-reference agent-modified files against git history to surface cognitive gaps before a rotation.
+Cross-reference agent-modified files against git history to find gaps before a rotation.
 
 ```bash
 agent-strace oncall --rotation-start 2026-04-25
@@ -997,7 +997,7 @@ For each file the agent has written in the last N days: how long ago it was modi
 
 ### Cost-efficiency curve
 
-Analyse stored session history to see which task types are worth delegating to an agent.
+See which task types are worth delegating to an agent.
 
 ```bash
 agent-strace curve
@@ -1008,7 +1008,7 @@ Sessions are classified into 10 task types (unit tests, debugging, refactoring, 
 
 ### Token inflation calculator
 
-Measure the tokenizer cost impact of switching model versions before committing to an upgrade — no API calls required.
+Measure the tokenizer cost impact of switching model versions before committing to an upgrade. No API calls required.
 
 ```bash
 agent-strace inflation
@@ -1024,22 +1024,22 @@ Applies per-model inflation factors to stored session content and breaks down th
 
 ### A2A protocol support
 
-First-class support for agent-to-agent calls following the Google A2A spec. A2A calls are captured as `TOOL_CALL` events with `event_subtype=a2a_call` — backward-compatible with all existing replay and export tooling.
+First-class support for agent-to-agent calls following the Google A2A spec. A2A calls are captured as `TOOL_CALL` events with `event_subtype=a2a_call`, backward-compatible with all existing replay and export tooling.
 
 ```bash
 agent-strace a2a-tree
 agent-strace a2a-tree SESSION_ID --format json
 ```
 
-Builds the full agent call graph by following `sub_session_id` links and `parent_session_id` back-references. Renders as an ASCII tree or exports as OTLP-compatible spans for Jaeger, Tempo, or any OpenTelemetry backend.
+Builds the full agent call graph by following `sub_session_id` links and `parent_session_id` back-references. Renders as an ASCII tree or exports as OTLP spans for Jaeger, Tempo, or any OpenTelemetry backend.
 
 ## Use with security-critical codebases
 
-When AI coding agents work on codebases that handle secrets, attestation logic, or cryptographic material, agent-strace provides two things: an audit trail of every file touched and every command run, and automatic redaction of secrets before they reach any log.
+When AI coding agents work on codebases that handle secrets, attestation logic, or cryptographic material, agent-strace gives you two things: an audit trail of every file touched and every command run, and redaction of secrets before they reach any log.
 
 ### Recommended setup for sensitive repos
 
-Add `.claude/settings.json` to the repo root and commit it. Every developer who works on the repo gets the same instrumentation automatically:
+Add `.claude/settings.json` to the repo root and commit it. Every developer gets the same instrumentation:
 
 ```json
 {
@@ -1083,10 +1083,10 @@ agent-strace setup --redact --redact-pattern "ATTESTATION_KEY=[A-Fa-f0-9]{64}"
 
 ### Example: scoping agents away from sensitive components
 
-Combine with [agentic-authz](https://github.com/Siddhant-K-code/agentic-authz) to enforce that agents cannot access security-critical components at all, and use agent-strace to audit everything they do access:
+Combine with [agentic-authz](https://github.com/Siddhant-K-code/agentic-authz) to block agents from security-critical components entirely, and use agent-strace to audit everything they do access:
 
 ```
-Agent scope:        frontend/ only (enforced by OpenFGA — no tuple = no access)
+Agent scope:        frontend/ only (enforced by OpenFGA: no tuple = no access)
 agent-strace scope: all tool calls logged, secrets redacted, exported to Grafana
 ```
 
@@ -1096,7 +1096,7 @@ Any attempt by the agent to read `cvm/attestation-service/` or `cvm/auth-service
 
 ## Production tracing (OTLP export)
 
-Export sessions as OpenTelemetry spans to your existing observability stack. Sessions become traces. Tool calls become spans with duration and inputs. Errors get exception events. Zero new dependencies.
+Export sessions as OpenTelemetry spans to your existing observability stack. Sessions become traces. Tool calls become spans with duration and inputs. Errors get exception events. No new dependencies.
 
 ### Datadog
 
@@ -1146,7 +1146,7 @@ agent-strace export <session-id> --format otlp \
 
 ### Langfuse export
 
-Export sessions and eval scores to [Langfuse](https://langfuse.com) (open-source LLM observability). Sessions appear as Traces, tool calls as Spans, LLM calls as Generations, and eval scores as Langfuse Scores.
+Export sessions and eval scores to [Langfuse](https://langfuse.com). Sessions appear as Traces, tool calls as Spans, LLM calls as Generations, and eval scores as Langfuse Scores.
 
 ```bash
 # Set credentials
@@ -1166,7 +1166,7 @@ agent-strace export --scores --backend langfuse \
 
 ### Export behavioral metrics to any OTLP backend
 
-Export per-session behavioral metrics as OTLP gauge metrics — compatible with Datadog, Honeycomb, Grafana, New Relic, and any OpenTelemetry-compatible backend.
+Export per-session behavioral metrics as OTLP gauge metrics. Compatible with Datadog, Honeycomb, Grafana, New Relic, and any OpenTelemetry backend.
 
 ```bash
 export OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io
@@ -1207,7 +1207,7 @@ agent-strace export <session-id> --format otlp > trace.json
 
 ## Debug with MCP
 
-`agent-strace mcp` starts an MCP server that exposes your session store as queryable tools. Any MCP-compatible client (Claude Code, Cursor, VS Code Copilot) can then query traces conversationally — the debugging agent reads its own execution history and surfaces what went wrong.
+`agent-strace mcp` starts an MCP server that exposes your session store as queryable tools. Any MCP-compatible client (Claude Code, Cursor, VS Code Copilot) can query traces conversationally. The debugging agent reads its own execution history and surfaces what went wrong.
 
 ```bash
 agent-strace mcp
@@ -1252,7 +1252,7 @@ Once connected, you can ask the debugging agent questions like:
 | `list_sessions` | List captured sessions with metadata (timestamp, tool calls, cost, tokens) |
 | `get_session` | Full event stream for a session, with optional event type filter |
 | `search_events` | Filter events by tool name, file path, exit code, or error flag across sessions |
-| `get_session_summary` | Plain-English phase breakdown — what the agent did, files touched, retries |
+| `get_session_summary` | Plain-English phase breakdown: what the agent did, files touched, retries |
 | `diff_sessions` | Compare two sessions: tool call delta, file overlap, cost delta, error delta |
 
 ### Example interactions
@@ -1405,7 +1405,7 @@ uv tool install -e .
 
 ## Sponsor
 
-If agent-trace saves you time debugging agent sessions, consider [sponsoring the project](https://github.com/sponsors/Siddhant-K-code). It helps me keep building tools like this and releasing them for free.
+If agent-trace saves you time, consider [sponsoring the project](https://github.com/sponsors/Siddhant-K-code). It helps keep the work going.
 
 ## License
 
