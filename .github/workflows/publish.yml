@@ -3,6 +3,11 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to publish (e.g. v0.38.1)"
+        required: true
 
 permissions:
   id-token: write
@@ -15,6 +20,8 @@ jobs:
       url: https://pypi.org/p/agent-trace
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v4
