@@ -224,6 +224,12 @@ agent-strace server [--port 4317] [--storage DIR]  Start a server-side event col
 agent-strace auto [--framework NAME] -- <cmd>      Run a command with auto-instrumentation
 agent-strace watch [--timeout DURATION] [--budget $] [--on-death CMD] [--rules file]
                                                 Watch a live session; kill/pause on rule breach
+agent-strace lint [session-id] [--strict] [--all] [--since DURATION]
+                                                Analyse a session for bad behaviour patterns
+agent-strace compare <session-id-a> <session-id-b> [--tag TAG] [--format json]
+                                                Session-to-session regression report
+agent-strace budget-report [--since DATE] [--format text|markdown|json]
+                                                Weekly spend digest across sessions
 agent-strace share <session-id> [-o file]       Export a self-contained HTML report
 agent-strace standup [--session id]             Standup report from session trace (no LLM)
 agent-strace freshness [--scope glob]           Context freshness check vs last session
