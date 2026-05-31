@@ -1,5 +1,9 @@
 name: agent-trace eval
 description: Run agent-trace evals in CI, post results to the step summary, and fail on regression.
+author: Siddhant-K-code
+branding:
+  icon: activity
+  color: purple
 
 inputs:
   config:
