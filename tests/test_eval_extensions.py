@@ -351,7 +351,9 @@ class TestEvalCiBaseline(unittest.TestCase):
         orig = os.getcwd()
         os.chdir(self.tmp)
         try:
-            _write_github_summary(report, baseline, tolerance=0.0)
+            with patch.dict(os.environ, {}, clear=False) as env:
+                os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                _write_github_summary(report, baseline, tolerance=0.0)
             summary = Path(".agent-traces/eval-summary.md").read_text()
         finally:
             os.chdir(orig)
@@ -366,7 +368,9 @@ class TestEvalCiBaseline(unittest.TestCase):
         orig = os.getcwd()
         os.chdir(self.tmp)
         try:
-            _write_github_summary(report, {}, tolerance=0.0)
+            with patch.dict(os.environ, {}, clear=False) as env:
+                os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                _write_github_summary(report, {}, tolerance=0.0)
             summary = Path(".agent-traces/eval-summary.md").read_text()
         finally:
             os.chdir(orig)
@@ -379,7 +383,9 @@ class TestEvalCiBaseline(unittest.TestCase):
         orig = os.getcwd()
         os.chdir(self.tmp)
         try:
-            _write_github_summary(report, baseline, tolerance=0.0)
+            with patch.dict(os.environ, {}, clear=False) as env:
+                os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                _write_github_summary(report, baseline, tolerance=0.0)
             summary = Path(".agent-traces/eval-summary.md").read_text()
         finally:
             os.chdir(orig)
@@ -392,7 +398,9 @@ class TestEvalCiBaseline(unittest.TestCase):
         orig = os.getcwd()
         os.chdir(self.tmp)
         try:
-            _write_github_summary(report, {}, tolerance=0.0)
+            with patch.dict(os.environ, {}, clear=False) as env:
+                os.environ.pop("GITHUB_STEP_SUMMARY", None)
+                _write_github_summary(report, {}, tolerance=0.0)
             summary = Path(".agent-traces/eval-summary.md").read_text()
         finally:
             os.chdir(orig)
