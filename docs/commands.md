@@ -209,6 +209,73 @@ agent-strace postmortem [session-id]
 ```
 View the watchdog post-mortem for a killed session.
 
+### `approval`
+```
+agent-strace approval list [--status pending|approved|denied]
+agent-strace approval show <request-id>
+agent-strace approval approve <request-id> [--note TEXT]
+agent-strace approval deny <request-id> [--note TEXT]
+```
+Human-in-the-loop approval queue. Agents pause at a checkpoint and wait for a human to approve or deny before continuing. Integrates with the `watch` kill-switch — a denied request triggers the configured `--on-violation` action.
+
+### `rbac`
+```
+agent-strace rbac assign --user USER --role ROLE [--scope org|workspace] [--workspace NAME]
+agent-strace rbac revoke --user USER --role ROLE [--scope org|workspace]
+agent-strace rbac list [--scope org|workspace]
+agent-strace rbac check --user USER --action ACTION [--resource RESOURCE]
+```
+Role-based access control for the hosted collector. Roles: `admin`, `editor`, `viewer`.
+
+| Flag | Description |
+|---|---|
+| `--scope org` | Org-wide assignment |
+| `--scope workspace` | Scoped to a named workspace |
+| `--workspace NAME` | Workspace name (required when `--scope workspace`) |
+
+### `auth`
+```
+agent-strace auth login --host URL [--client-id ID] [--issuer URL]
+agent-strace auth logout
+agent-strace auth status
+```
+Authenticate with a hosted collector via OIDC. Stores the token in `~/.agent-strace/token.json`. All subsequent commands that contact the collector use the stored token automatically.
+
+### `apply`
+```
+agent-strace apply [--config FILE] [--host URL] [--dry-run]
+```
+Apply `.agent-strace.yaml` to the local store or a hosted collector. Use `--dry-run` to preview changes without writing.
+
+### `config-diff`
+```
+agent-strace config-diff [--config FILE] [--host URL]
+```
+Show the diff between the local `.agent-strace.yaml` and the live config on a hosted collector.
+
+### `workspace`
+```
+agent-strace workspace list
+agent-strace workspace new <name>
+agent-strace workspace use <name>
+agent-strace workspace rm <name>
+```
+Isolated workspaces — each workspace has its own session store. Use `use` to print the shell export (`AGENT_STRACE_STORAGE`) for a workspace.
+
+### `compliance`
+```
+agent-strace compliance export --framework eu-ai-act|soc2|hipaa
+                                [--since DATE] [--until DATE]
+                                [--output FILE] [--format json|markdown]
+```
+Export a compliance report for the specified framework. Covers session retention, data handling, access logs, and policy enforcement evidence.
+
+| Framework | Coverage |
+|---|---|
+| `eu-ai-act` | Transparency, human oversight, data governance |
+| `soc2` | Access control, availability, confidentiality |
+| `hipaa` | PHI handling, audit trail, access logs |
+
 ---
 
 ## Analysis across sessions
@@ -369,6 +436,16 @@ agent-strace a2a-tree [session-id] [--format text|json]
 ```
 Visualise the A2A agent call graph. Exports as OTLP spans for Jaeger, Tempo, or any OpenTelemetry backend.
 
+### `identity`
+```
+agent-strace identity show
+agent-strace identity sign <session-id>
+agent-strace identity verify <session-id>
+```
+Machine identity for agent sessions. `show` creates a persistent identity (stored in `~/.agent-strace/identity.json`) if one does not exist. `sign` attaches an HMAC signature to a session. `verify` checks the signature.
+
+Use machine identity to prove which machine produced a session — useful for compliance and multi-machine deployments.
+
 ---
 
 ## Annotations and metadata
@@ -409,3 +486,37 @@ retention:
   max_size_mb: 500
   on_delete: log
 ```
+
+---
+
+## GitHub Actions
+
+The `agent-trace eval` composite action runs evals in CI, posts a scored table to the GitHub Actions step summary, and exits non-zero on regression.
+
+```yaml
+- uses: Siddhant-K-code/agent-trace@gha-v1
+  with:
+    config: .agent-evals.yaml
+    baseline: .agent-evals-baseline.json
+    tolerance: "0.05"
+    save-baseline: "false"
+```
+
+| Input | Default | Description |
+|---|---|---|
+| `config` | `.agent-evals.yaml` | Eval config file |
+| `baseline` | none | Baseline scores file for regression gating |
+| `save-baseline` | `false` | Overwrite baseline with current scores |
+| `tolerance` | `0.05` | Max allowed score regression (0.0 to 1.0) |
+| `trace-dir` | `.agent-traces` | Session storage directory |
+| `python-version` | `3.12` | Python version |
+| `install-extras` | none | Optional extras, e.g. `openai,anthropic` |
+
+| Output | Description |
+|---|---|
+| `passed` | `true` if all scorers passed |
+| `summary-path` | Path to the written eval summary markdown |
+
+Trace artifacts are uploaded automatically under the `agent-traces` artifact name.
+
+[Marketplace listing](https://github.com/marketplace/actions/agent-trace-eval)

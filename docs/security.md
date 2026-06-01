@@ -138,6 +138,56 @@ agent-strace policy --last 20 --output .agent-scope.json
 
 ---
 
+## Role-based access control
+
+Restrict who can read, export, or delete sessions on a hosted collector.
+
+```bash
+# Assign a role
+agent-strace rbac assign --user alice@example.com --role editor --scope org
+
+# Scope to a specific workspace
+agent-strace rbac assign --user bob@example.com --role viewer --scope workspace --workspace prod
+
+# Check access
+agent-strace rbac check --user alice@example.com --action export --resource sessions
+
+# List all assignments
+agent-strace rbac list
+```
+
+| Role | Permissions |
+|---|---|
+| `admin` | Full access: read, write, delete, manage roles |
+| `editor` | Read and export sessions, run evals |
+| `viewer` | Read sessions only |
+
+Assignments are stored in `.agent-strace/rbac.json` (local) or on the hosted collector.
+
+---
+
+## Workspace isolation
+
+Workspaces provide separate session stores. Use them to isolate production traces from development, or to separate sessions by team.
+
+```bash
+# Create a workspace
+agent-strace workspace new prod
+
+# Switch to it (sets AGENT_STRACE_STORAGE)
+eval $(agent-strace workspace use prod)
+
+# List workspaces
+agent-strace workspace list
+
+# Delete a workspace and all its sessions
+agent-strace workspace rm staging
+```
+
+Each workspace is a separate directory under the base storage path. RBAC assignments can be scoped per workspace.
+
+---
+
 ## Shadow AI detection
 
 Detect undeclared agent activity and Shadow MCP servers in any repo. No network calls, no API keys.

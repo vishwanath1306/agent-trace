@@ -32,6 +32,7 @@ instrument_langchain()
 |---|---|---|
 | OpenAI Agents SDK | `pip install agent-strace[openai-agents]` | `Runner.run`, `FunctionTool` calls |
 | LangChain / LangGraph | `pip install agent-strace[langchain]` | `BaseTool._run`, `BaseChatModel._generate` |
+| CrewAI | `pip install agent-strace[crewai]` | `Crew.kickoff`, `Agent.execute_task`, `Task.execute_sync` |
 | LiteLLM | `pip install agent-strace[litellm]` | `litellm.completion` |
 | Anthropic SDK | `pip install anthropic` | `messages.create` |
 | OpenAI SDK | `pip install openai` | `chat.completions.create` |
@@ -75,6 +76,24 @@ llm = ChatAnthropic(model="claude-3-5-sonnet-20241022")
 ```
 
 Traces: `BaseTool._run`, `BaseChatModel._generate`, `BaseChatModel._stream`.
+
+LangGraph node-level tracing is included — each node execution appears as a separate `tool_call` span with the node name and input/output.
+
+---
+
+## CrewAI
+
+```python
+from agent_trace.integrations import instrument_crewai
+instrument_crewai()
+
+# Now use CrewAI normally
+from crewai import Crew, Agent, Task
+crew = Crew(agents=[...], tasks=[...])
+result = crew.kickoff()
+```
+
+Traces: `Crew.kickoff` (session start/end), `Agent.execute_task` (LLM request/response), `Task.execute_sync` (tool call/result).
 
 ---
 
@@ -134,3 +153,37 @@ result = agent("Do the task")
 ```
 
 Traces: `Agent.__call__`, `BaseTool.invoke`.
+
+---
+
+## Cross-agent trace correlation (W3C traceparent)
+
+When one agent calls another over HTTP, inject a `traceparent` header so both sessions share the same W3C trace ID. This links spans across agents in any OTLP backend (Jaeger, Tempo, Datadog, Honeycomb).
+
+**Injecting (outbound call):**
+
+```python
+from agent_trace.propagation import inject_traceparent
+
+headers = inject_traceparent({}, session_id="abc123", event_id="evt456")
+# headers now contains: {"traceparent": "00-<trace-id>-<span-id>-01"}
+
+response = requests.post("https://other-agent/run", headers=headers, json={...})
+```
+
+**Extracting (inbound call):**
+
+```python
+from agent_trace.propagation import extract_traceparent
+
+ctx = extract_traceparent(request.headers)
+if ctx:
+    # ctx["trace_id"]   — 32-hex W3C trace ID from upstream
+    # ctx["parent_id"]  — span ID of the calling agent
+    # ctx["sampled"]    — sampling flag
+    pass
+```
+
+Pass `trace_id` from the extracted context into `inject_traceparent` on any further outbound calls to propagate the same trace ID through the full call chain.
+
+The implementation follows [W3C Trace Context Level 1](https://www.w3.org/TR/trace-context/). No third-party dependencies required.

@@ -93,6 +93,62 @@ agent-strace export --scores --backend langfuse \
 
 ---
 
+## Live OTLP streaming
+
+Stream events to an OTLP endpoint in real-time as the session runs, rather than exporting after it ends. Use `watch --stream-to` to enable:
+
+```bash
+agent-strace watch --stream-to http://localhost:4318/v1/traces
+```
+
+Each tool call is flushed as a span immediately on completion. The session root span is closed when the session ends or the watchdog kills it.
+
+Configure batch size and flush interval:
+
+```bash
+agent-strace watch \
+  --stream-to https://api.honeycomb.io/v1/traces \
+  --stream-batch-size 10 \
+  --stream-flush-interval 5
+```
+
+| Flag | Default | Description |
+|---|---|---|
+| `--stream-to URL` | none | OTLP HTTP endpoint to stream to |
+| `--stream-batch-size N` | `10` | Flush after N events |
+| `--stream-flush-interval S` | `5` | Flush every S seconds regardless of batch size |
+
+---
+
+## Baseline anomaly detection
+
+Build a statistical baseline from recent sessions and alert when a new session deviates:
+
+```bash
+# Build baseline from the last 50 sessions
+agent-strace baseline update --sessions 50
+
+# Check a session against the baseline
+agent-strace baseline check <session-id>
+
+# Show baseline statistics
+agent-strace baseline show
+```
+
+Metrics tracked: cost, duration, tool call count, error rate, retry rate, blast radius. Each metric gets a mean and standard deviation. A session is flagged when any metric exceeds `--threshold` standard deviations from the mean (default: 2.0).
+
+```bash
+agent-strace baseline check <session-id> --threshold 2.5 --format json
+```
+
+Use `baseline check` as a CI gate — it exits 1 when the session is anomalous:
+
+```bash
+agent-strace baseline check $SESSION_ID || echo "Session outside baseline"
+```
+
+---
+
 ## Behavioral metrics
 
 Export per-session behavioral metrics as OTLP gauge metrics:
