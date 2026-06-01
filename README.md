@@ -7,7 +7,7 @@
 [![GitHub Marketplace](https://img.shields.io/badge/Marketplace-agent--trace%20eval-blue?logo=github)](https://github.com/marketplace/actions/agent-trace-eval)
 [![Open VSX](https://img.shields.io/open-vsx/v/Siddhant-K-code/agent-strace)](https://open-vsx.org/extension/Siddhant-K-code/agent-strace)
 [![VS Marketplace](https://img.shields.io/badge/VS%20Marketplace-v0.2.1-blue?logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=Siddhant-K-code.agent-strace)
-[![License](https://img.shields.io/github/license/Siddhant-K-code)](LICENSE)
+[![License](https://img.shields.io/github/license/Siddhant-K-code/agent-trace)](LICENSE)
 
 `strace` for AI agents.
 
