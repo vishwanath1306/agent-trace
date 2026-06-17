@@ -1,16 +1,16 @@
 //! `agent_trace_core` — the Rust core for agent-trace.
 //!
-//! Two surfaces from one crate:
-//!   * a plain Rust library (`rlib`) — see [`models`] and [`import`];
-//!   * a Python extension module (`cdylib`, built by maturin) exposing the
-//!     same functionality with no per-event Python allocations, so importing
-//!     and verifying large traces stays flat in memory.
+//! Builds as a pure-Rust library (`rlib`) and, under the `python` feature, as a
+//! PyO3 extension module (`cdylib`).
 
 pub mod import;
 pub mod models;
 
-use pyo3::prelude::*;
-use pyo3::types::{PyDict, PyList};
+#[cfg(feature = "python")]
+mod python_bindings {
+    use crate::{import, models};
+    use pyo3::prelude::*;
+    use pyo3::types::{PyDict, PyList};
 
 /// Import a Claude Code JSONL session log into `<trace_dir>/<session-id>/`.
 /// Returns a summary dict: session_id, tool_calls, llm_requests, total_tokens, events.
@@ -72,3 +72,4 @@ fn agent_trace_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(verify_hash_chain, m)?)?;
     Ok(())
 }
+} // mod python_bindings

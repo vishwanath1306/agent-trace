@@ -178,20 +178,21 @@ pub fn sha256_hex(s: &str) -> String {
     out
 }
 
-/// Serialize a list of events into an NDJSON string, filling each event's
-/// `prev_hash` with the SHA-256 of the previous line (empty for the first).
-/// The events are mutated in place so the returned chain is self-consistent.
+/// Serialize events to NDJSON, rebuilding the `prev_hash` chain (first empty,
+/// each subsequent one the SHA-256 of the previous line). Events are mutated in
+/// place to reflect what was written.
 pub fn write_ndjson(events: &mut [TraceEvent]) -> String {
     let mut out = String::new();
-    let mut prev_line = String::new();
+    let mut prev_line: Option<String> = None;
     for ev in events.iter_mut() {
-        if ev.prev_hash.is_empty() && !prev_line.is_empty() {
-            ev.prev_hash = sha256_hex(&prev_line);
-        }
+        ev.prev_hash = match &prev_line {
+            Some(prev) => sha256_hex(prev),
+            None => String::new(),
+        };
         let line = ev.to_json();
         out.push_str(&line);
         out.push('\n');
-        prev_line = line;
+        prev_line = Some(line);
     }
     out
 }
@@ -209,12 +210,10 @@ pub fn parse_ndjson(text: &str) -> serde_json::Result<Vec<TraceEvent>> {
     Ok(events)
 }
 
-/// Verify that every line's `prev_hash` equals the SHA-256 of the previous
-/// line. Returns true for an intact chain (and for empty input).
+/// Verify that every line's `prev_hash` equals the SHA-256 of the previous line.
 pub fn verify_hash_chain(text: &str) -> bool {
     let mut prev_line: Option<&str> = None;
     for line in text.lines() {
-        let line = line.trim();
         if line.is_empty() {
             continue;
         }
@@ -278,6 +277,24 @@ mod tests {
         let parsed = parse_ndjson(&ndjson).unwrap();
         assert_eq!(parsed.len(), 3);
         assert_eq!(parsed[2].data["tool_name"], "Bash");
+    }
+
+    #[test]
+    fn write_ndjson_overwrites_stale_prev_hash() {
+        // Events arrive carrying bogus prev_hash values; write_ndjson must
+        // discard them and rebuild a consistent chain.
+        let mut events = vec![
+            TraceEvent::new(USER_PROMPT, 1.0, "a".into(), "s".into(), json!({"prompt": "x"})),
+            TraceEvent::new(ASSISTANT_RESPONSE, 2.0, "b".into(), "s".into(), json!({"text": "y"})),
+        ];
+        events[0].prev_hash = "deadbeef".into(); // stale on first
+        events[1].prev_hash = "garbage".into(); // stale mid-chain
+        let ndjson = write_ndjson(&mut events);
+        assert!(verify_hash_chain(&ndjson));
+        // Both stale values are discarded: first reset to empty, second recomputed.
+        assert_eq!(events[0].prev_hash, "");
+        assert_eq!(events[1].prev_hash.len(), 64);
+        assert_ne!(events[1].prev_hash, "garbage");
     }
 
     #[test]

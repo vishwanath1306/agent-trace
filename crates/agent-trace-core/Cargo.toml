@@ -19,9 +19,14 @@ serde = { version = "1", features = ["derive"] }
 serde_json = { version = "1", features = ["preserve_order"] }
 sha2 = "0.10"
 chrono = { version = "0.4", default-features = false, features = ["std"] }
-pyo3 = { version = "0.24", features = ["abi3-py310"] }
+# Optional: only pulled in for the Python bindings. Pure-Rust consumers of the
+# rlib get no PyO3 and link no libpython.
+pyo3 = { version = "0.24", optional = true }
 
 [features]
-# maturin enables this when building the wheel. Leaving it off lets `cargo test`
-# link libpython normally so the pure-Rust unit tests run without a wheel.
-extension-module = ["pyo3/extension-module"]
+# No default features -> the rlib and `cargo test` build pure Rust, no libpython.
+default = []
+# `python` compiles the PyO3 bindings (lib.rs is gated on it).
+python = ["dep:pyo3", "pyo3/abi3-py310"]
+# maturin enables this when building the wheel; it implies `python`.
+extension-module = ["python", "pyo3/extension-module"]

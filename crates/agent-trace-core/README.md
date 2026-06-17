@@ -3,11 +3,27 @@
 The Rust core for [agent-trace](../../README.md). One crate, two surfaces:
 
 - **Rust library** (`rlib`) — `models` (trace types, NDJSON, SHA-256 hash chain)
-  and `import` (Claude Code JSONL import). Use it from any Rust program.
+  and `import` (Claude Code JSONL import). Use it from any Rust program. The
+  default build is **pure Rust**: PyO3 is an optional dependency, so a plain Rust
+  consumer pulls in no PyO3 and links no libpython.
 - **Python extension** (`cdylib`, built with [maturin](https://www.maturin.rs/)
   + [PyO3](https://pyo3.rs/)) — the module `agent_trace_core`, exposing the same
   functionality to Python with no per-event Python object allocation. Parsing
-  and verifying large traces stays flat in memory.
+  and verifying large traces stays flat in memory. The bindings compile only
+  under the `python` feature (which `extension-module` implies).
+
+### Feature flags
+
+| Feature | Effect |
+|---|---|
+| *(default)* | Pure-Rust `rlib`; no PyO3, no libpython. |
+| `python` | Compiles the PyO3 bindings (abi3, py3.10+). |
+| `extension-module` | `python` + `pyo3/extension-module`; what maturin builds. |
+
+```toml
+# Rust-only consumer — nothing Python is linked:
+agent-trace-core = "0.1"
+```
 
 ## Why Rust
 
@@ -71,11 +87,16 @@ always internally consistent (`verify_hash_chain` passes).
 
 ## Tests
 
-The unit tests are pure Rust, but the test binary links PyO3, so the loader
-needs `libpython` on its path:
+The default test build is pure Rust, so the core tests run with no libpython:
+
+```bash
+cargo test                       # models + import, no Python needed
+```
+
+Building/testing the PyO3 bindings needs `libpython` on the loader path:
 
 ```bash
 LIBDIR=$(python3 -c "import sysconfig; print(sysconfig.get_config_var('LIBDIR'))")
-DYLD_FALLBACK_LIBRARY_PATH="$LIBDIR" cargo test    # macOS
-LD_LIBRARY_PATH="$LIBDIR" cargo test               # Linux
+DYLD_FALLBACK_LIBRARY_PATH="$LIBDIR" cargo test --features python   # macOS
+LD_LIBRARY_PATH="$LIBDIR" cargo test --features python              # Linux
 ```

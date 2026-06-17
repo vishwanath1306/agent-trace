@@ -389,23 +389,11 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
         }),
     ));
 
-    // Write the session directory.
     let session_dir = Path::new(trace_dir).join(&session_id);
     fs::create_dir_all(&session_dir)?;
     fs::write(session_dir.join("meta.json"), meta.to_json())?;
 
-    // Build the events file with the SHA-256 hash chain.
-    let mut ndjson = String::new();
-    let mut prev_line = String::new();
-    for ev in events.iter_mut() {
-        if !prev_line.is_empty() {
-            ev.prev_hash = sha256_hex(&prev_line);
-        }
-        let line = ev.to_json();
-        ndjson.push_str(&line);
-        ndjson.push('\n');
-        prev_line = line;
-    }
+    let ndjson = crate::models::write_ndjson(&mut events);
     fs::write(session_dir.join("events.ndjson"), ndjson)?;
 
     Ok(ImportSummary {
