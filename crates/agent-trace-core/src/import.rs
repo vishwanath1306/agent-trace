@@ -143,6 +143,28 @@ fn usage_u64(usage: &Value, key: &str) -> u64 {
     usage.get(key).and_then(Value::as_u64).unwrap_or(0)
 }
 
+/// First 12 hex chars of SHA-256(`s`).
+fn hex12(s: &str) -> String {
+    sha256_hex(s).chars().take(12).collect()
+}
+
+/// Derive a stable, globally-unique 12-hex `event_id` from an entry's `uuid`,
+/// falling back to `fallback_seed` when there is none. `intra` disambiguates an
+/// entry that yields more than one event.
+fn event_id(uuid: Option<&str>, fallback_seed: &str, intra: usize) -> String {
+    match uuid {
+        Some(u) if !u.is_empty() => {
+            let stripped: String = u.chars().filter(|c| *c != '-').collect();
+            if intra == 0 {
+                stripped.chars().take(12).collect()
+            } else {
+                hex12(&format!("{}:{}", stripped, intra))
+            }
+        }
+        _ => hex12(&format!("{}:{}", fallback_seed, intra)),
+    }
+}
+
 /// Import a Claude Code JSONL session log into `<trace_dir>/<session-id>/`.
 pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
     let path = expanduser(path);
@@ -208,28 +230,26 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
         ),
     );
 
-    // Second pass: convert entries to events. event_id uses a per-import
-    // counter (unique within the session); see README for why this differs
-    // from the Python random ids.
+    // Second pass: convert entries to events.
     let mut events: Vec<TraceEvent> = Vec::new();
-    let mut counter: u64 = 0;
-    let new_id = |c: &mut u64| -> String {
-        let id = format!("{:012x}", *c);
-        *c += 1;
-        id
-    };
 
-    for raw in &entries {
+    for (idx, raw) in entries.iter().enumerate() {
         let entry_type = obj_get_str(raw, "type");
         let ts = parse_iso_timestamp(obj_get_str(raw, "timestamp"));
-        // Match Python's `msg = raw.get("message", {})`: a missing message is an
-        // empty object (entry still processed, e.g. `system`/turn_duration); a
-        // present-but-non-object message skips the entry.
         let empty = json!({});
         let msg = match raw.get("message") {
             Some(m) if m.is_object() => m,
             Some(_) => continue,
             None => &empty,
+        };
+
+        let entry_uuid = raw.get("uuid").and_then(Value::as_str);
+        let fallback_seed = format!("{}:{}", session_id, idx);
+        let mut intra = 0usize;
+        let mut new_id = || {
+            let id = event_id(entry_uuid, &fallback_seed, intra);
+            intra += 1;
+            id
         };
         let content = msg.get("content").cloned().unwrap_or(Value::Null);
         let usage = msg.get("usage").cloned().unwrap_or(Value::Null);
@@ -251,7 +271,7 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                     events.push(TraceEvent::new(
                         TOOL_RESULT,
                         ts,
-                        new_id(&mut counter),
+                        new_id(),
                         session_id.clone(),
                         json!({ "tool_use_id": tr.tool_use_id, "content_preview": preview }),
                     ));
@@ -270,7 +290,7 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                                 events.push(TraceEvent::new(
                                     TOOL_RESULT,
                                     ts,
-                                    new_id(&mut counter),
+                                    new_id(),
                                     session_id.clone(),
                                     json!({ "result": result_text, "content_types": ["text"] }),
                                 ));
@@ -284,7 +304,7 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                 events.push(TraceEvent::new(
                     USER_PROMPT,
                     ts,
-                    new_id(&mut counter),
+                    new_id(),
                     session_id.clone(),
                     json!({ "prompt": take_chars(&text_val, 2000) }),
                 ));
@@ -314,7 +334,7 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                     events.push(TraceEvent::new(
                         TOOL_CALL,
                         ts,
-                        new_id(&mut counter),
+                        new_id(),
                         session_id.clone(),
                         Value::Object(data),
                     ));
@@ -326,9 +346,9 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                 events.push(TraceEvent::new(
                     ASSISTANT_RESPONSE,
                     ts,
-                    new_id(&mut counter),
+                    new_id(),
                     session_id.clone(),
-                    json!({ "text": take_chars(&text_val, 2000), "model": model }),
+                    json!({ "text": take_chars(&text_val, 2000), "model": obj_get_str(msg, "model") }),
                 ));
             }
 
@@ -349,7 +369,6 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
         }
     }
 
-    // Finalize.
     meta.ended_at = Some(if last_ts > 0.0 { last_ts } else { meta.started_at });
     let ended = meta.ended_at.unwrap();
     if meta.total_duration_ms == 0.0 && ended > meta.started_at {
@@ -359,7 +378,7 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
     events.push(TraceEvent::new(
         SESSION_END,
         ended,
-        new_id(&mut counter),
+        event_id(None, &format!("{}:session_end", session_id), 0),
         session_id.clone(),
         json!({
             "duration_ms": compact_number(meta.total_duration_ms),
@@ -398,7 +417,46 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
     })
 }
 
-/// Decode Claude Code's encoded project directory name (matches Python).
+#[cfg(test)]
+mod tests {
+    use super::event_id;
+
+    #[test]
+    fn event_id_reuses_source_uuid() {
+        let id = event_id(Some("84935712-19fa-4fa0-bf29-3c4341716582"), "seed", 0);
+        assert_eq!(id, "8493571219fa");
+        assert_eq!(id.len(), 12);
+    }
+
+    #[test]
+    fn event_id_disambiguates_multiple_events_per_entry() {
+        let u = Some("84935712-19fa-4fa0-bf29-3c4341716582");
+        let a = event_id(u, "seed", 0);
+        let b = event_id(u, "seed", 1);
+        let c = event_id(u, "seed", 2);
+        assert_ne!(a, b);
+        assert_ne!(b, c);
+        assert_eq!(b.len(), 12);
+    }
+
+    #[test]
+    fn event_id_is_unique_across_sessions() {
+        let a = event_id(Some("aaaaaaaa-0000-0000-0000-000000000000"), "s1", 0);
+        let b = event_id(Some("bbbbbbbb-0000-0000-0000-000000000000"), "s2", 0);
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn event_id_falls_back_without_uuid() {
+        let a = event_id(None, "sessionA:session_end", 0);
+        let b = event_id(None, "sessionB:session_end", 0);
+        assert_eq!(a.len(), 12);
+        assert_ne!(a, b);
+        assert_eq!(a, event_id(None, "sessionA:session_end", 0));
+    }
+}
+
+/// Decode Claude Code's encoded project directory name.
 fn decode_project_path(encoded: &str) -> String {
     if !encoded.starts_with('-') {
         return encoded.to_string();

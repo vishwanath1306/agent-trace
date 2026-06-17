@@ -58,11 +58,16 @@ The serialized output matches `agent_trace.models` field-for-field (compact
 event lines, conditional key dropping, pretty meta), so files written here are
 read by the existing Python tooling and round-trip cleanly.
 
-One intentional difference: imported events get sequential `event_id`s
-(`000000000000`, `000000000001`, …) instead of Python's random UUID fragments.
-`event_id` isn't used to correlate imported events, and sequential ids make the
-hash chain reproducible for tests. The chain itself is always internally
-consistent (`verify_hash_chain` passes).
+`event_id`s are derived from Claude Code's per-entry `uuid` (dashes stripped,
+truncated to 12 hex — the same width as Python's `uuid4().hex[:12]`). This keeps
+them stable across re-imports and **globally unique across sessions**, which
+matters because the export layers key off `event_id` (e.g. OTLP derives span
+ids from it; colliding ids across sessions would corrupt a multi-session
+export). The rare entry that yields more than one event gets an intra-entry
+suffix; synthetic events with no source uuid (the `session_end` event) derive
+their id from the session id. The values won't match a Python import's *random*
+ids, but they share the format and uniqueness guarantees, and the hash chain is
+always internally consistent (`verify_hash_chain` passes).
 
 ## Tests
 
