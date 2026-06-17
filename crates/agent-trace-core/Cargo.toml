@@ -1,0 +1,27 @@
+[package]
+name = "agent-trace-core"
+version = "0.1.0"
+edition = "2021"
+description = "Rust core for agent-trace: trace models, NDJSON with a SHA-256 hash chain, and Claude Code session import."
+license = "MIT"
+repository = "https://github.com/Siddhant-K-code/agent-trace"
+
+# cdylib  -> the Python extension module (built by maturin)
+# rlib    -> usable as a plain Rust library (the "SDK" surface)
+[lib]
+name = "agent_trace_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+# preserve_order keeps JSON object keys in insertion order so our output
+# matches the field order the Python dataclasses emit.
+serde_json = { version = "1", features = ["preserve_order"] }
+sha2 = "0.10"
+chrono = { version = "0.4", default-features = false, features = ["std"] }
+pyo3 = { version = "0.24", features = ["abi3-py310"] }
+
+[features]
+# maturin enables this when building the wheel. Leaving it off lets `cargo test`
+# link libpython normally so the pure-Rust unit tests run without a wheel.
+extension-module = ["pyo3/extension-module"]
