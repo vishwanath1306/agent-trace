@@ -98,20 +98,63 @@ class RustCoreRoundTrip(unittest.TestCase):
             events_file = trace_dir / "rsess" / "events.ndjson"
             text = events_file.read_text()
 
-            # Python agrees the Rust-written chain is intact...
             self.assertTrue(_python_chain_ok(text))
-            # ...and the Python store parses every line into a TraceEvent.
             evs = TraceStore(str(trace_dir)).load_events("rsess")
-            self.assertTrue(len(evs) >= 3)  # user_prompt, tool_call, assistant_response, session_end
-            # event_id derives from the source uuid (dashes stripped, 12 hex).
+            self.assertTrue(len(evs) >= 3)
             ids = {e.event_id for e in evs}
             self.assertIn("111111111111", ids)
             self.assertIn("222222222222", ids)
 
+    def test_non_ascii_serialization_matches_python(self):
+        """Non-ASCII serializes to the same bytes as Python (ensure_ascii)."""
+        ev = TraceEvent(
+            event_type=EventType.ASSISTANT_RESPONSE,
+            timestamp=1.0,
+            event_id="abc",
+            session_id="s",
+            data={"text": "café 日本語 🎉 ❤ \U0001F600"},
+        )
+        line = ev.to_json()
+        self.assertTrue(line.isascii())
+        self.assertEqual(core.parse_ndjson(line), [line])
+
+        from agent_trace.jsonl_import import import_jsonl
+
+        entries = [
+            {
+                "type": "user",
+                "uuid": "33333333-3333-3333-3333-333333333333",
+                "sessionId": "usess",
+                "timestamp": "2026-06-17T00:00:00.000Z",
+                "message": {"role": "user", "content": "héllo 世界 🚀"},
+            }
+        ]
+        with tempfile.TemporaryDirectory() as d:
+            jsonl = Path(d) / "usess.jsonl"
+            jsonl.write_text(
+                "\n".join(json.dumps(e) for e in entries) + "\n", encoding="utf-8"
+            )
+            py_dir, rust_dir = Path(d) / "py", Path(d) / "rust"
+            import_jsonl(str(jsonl), store=TraceStore(str(py_dir), redact=False))
+            core.import_claude_jsonl(str(jsonl), str(rust_dir))
+
+            def norm(p):
+                out = []
+                for ln in Path(p).read_text().splitlines():
+                    if not ln.strip():
+                        continue
+                    obj = json.loads(ln)
+                    obj.pop("event_id", None)
+                    obj.pop("prev_hash", None)
+                    out.append(json.dumps(obj, sort_keys=True, ensure_ascii=True))
+                return out
+
+            py = norm(py_dir / "usess" / "events.ndjson")
+            rust = norm(rust_dir / "usess" / "events.ndjson")
+            self.assertEqual(py, rust)
+
     def test_serialization_is_byte_identical(self):
-        """parse_ndjson round-trips Python-serialized lines unchanged — this is
-        the property the hash chain's cross-language validity depends on. In
-        particular it catches the `redacted: false` omit-vs-emit divergence."""
+        """parse_ndjson round-trips Python-serialized lines unchanged."""
         cases = [
             TraceEvent(
                 event_type=EventType.USER_PROMPT,

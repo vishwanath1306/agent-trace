@@ -14,6 +14,25 @@ fn is_false(b: &bool) -> bool {
     !*b
 }
 
+/// Escape non-ASCII as `\uXXXX` (UTF-16 units), matching Python's `ensure_ascii`.
+fn escape_non_ascii(s: String) -> String {
+    if s.is_ascii() {
+        return s;
+    }
+    let mut out = String::with_capacity(s.len() + 8);
+    let mut buf = [0u16; 2];
+    for ch in s.chars() {
+        if ch.is_ascii() {
+            out.push(ch);
+        } else {
+            for unit in ch.encode_utf16(&mut buf) {
+                out.push_str(&format!("\\u{:04x}", unit));
+            }
+        }
+    }
+    out
+}
+
 fn empty_object() -> Value {
     Value::Object(serde_json::Map::new())
 }
@@ -53,10 +72,9 @@ impl TraceEvent {
         }
     }
 
-    /// Compact JSON, byte-for-byte equivalent to the Python `to_json` output
-    /// (`separators=(",", ":")`, conditional key dropping, field ordering).
+    /// Serialize to a compact JSON line.
     pub fn to_json(&self) -> String {
-        serde_json::to_string(self).expect("TraceEvent serializes")
+        escape_non_ascii(serde_json::to_string(self).expect("TraceEvent serializes"))
     }
 
     pub fn from_json(line: &str) -> serde_json::Result<TraceEvent> {
@@ -158,7 +176,7 @@ impl SessionMeta {
     }
 
     pub fn to_json(&self) -> String {
-        serde_json::to_string_pretty(self).expect("SessionMeta serializes")
+        escape_non_ascii(serde_json::to_string_pretty(self).expect("SessionMeta serializes"))
     }
 
     pub fn from_json(text: &str) -> serde_json::Result<SessionMeta> {
@@ -295,6 +313,23 @@ mod tests {
         assert_eq!(events[0].prev_hash, "");
         assert_eq!(events[1].prev_hash.len(), 64);
         assert_ne!(events[1].prev_hash, "garbage");
+    }
+
+    #[test]
+    fn non_ascii_is_escaped_like_python() {
+        let original = "café 日本語 🎉 ❤";
+        let ev = TraceEvent::new(ASSISTANT_RESPONSE, 1.0, "abc".into(), "s".into(), json!({"text": original}));
+        let line = ev.to_json();
+        assert!(line.is_ascii(), "output must be pure ASCII, got: {line}");
+        let u = |c: char| {
+            let mut b = [0u16; 2];
+            c.encode_utf16(&mut b).iter().map(|x| format!("\\u{:04x}", x)).collect::<String>()
+        };
+        assert!(line.contains(&u('é')));
+        assert!(line.contains(&u('🎉')));
+        assert_eq!(u('🎉').matches("\\u").count(), 2);
+        let parsed = TraceEvent::from_json(&line).unwrap();
+        assert_eq!(parsed.data["text"], original);
     }
 
     #[test]
