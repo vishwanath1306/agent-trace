@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -136,6 +137,33 @@ def _extract_text(content: Any) -> str:
     return ""
 
 
+def _rust_core() -> Any | None:
+    """Return the optional Rust extension module when enabled and installed."""
+    if os.environ.get("AGENT_STRACE_NO_RUST", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        return None
+    try:
+        import agent_trace_core
+
+        return agent_trace_core
+    except ImportError:
+        return None
+
+
+def _rust_import(path: Path, store: TraceStore) -> str | None:
+    """Import via the Rust core when eligible; return the session id, or None
+    to fall back to the Python implementation."""
+    if store.redact or store.workspace_id:
+        return None
+    core = _rust_core()
+    if core is None:
+        return None
+    return core.import_claude_jsonl(str(path), str(store.base_dir))["session_id"]
+
+
 def import_jsonl(
     path: str | Path,
     store: TraceStore | None = None,
@@ -163,6 +191,10 @@ def import_jsonl(
 
     if store is None:
         store = TraceStore(trace_dir)
+
+    rust_session_id = _rust_import(path, store)
+    if rust_session_id is not None:
+        return rust_session_id
 
     # First pass: extract metadata from first entry
     session_id = ""

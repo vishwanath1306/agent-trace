@@ -8,6 +8,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from agent_trace.models import EventType, TraceEvent
 from agent_trace.store import TraceStore
@@ -135,7 +136,8 @@ class RustCoreRoundTrip(unittest.TestCase):
                 "\n".join(json.dumps(e) for e in entries) + "\n", encoding="utf-8"
             )
             py_dir, rust_dir = Path(d) / "py", Path(d) / "rust"
-            import_jsonl(str(jsonl), store=TraceStore(str(py_dir), redact=False))
+            with patch("agent_trace.jsonl_import._rust_core", return_value=None):
+                import_jsonl(str(jsonl), store=TraceStore(str(py_dir), redact=False))
             core.import_claude_jsonl(str(jsonl), str(rust_dir))
 
             def norm(p):

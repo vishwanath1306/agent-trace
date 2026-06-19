@@ -38,7 +38,7 @@ Print or install hooks config for supported agent CLIs. `--cli claude` prints Cl
 ```
 agent-strace import <path.jsonl> [--discover]
 ```
-Import a Claude Code JSONL session log. `--discover` lists available sessions in `~/.claude/projects/`.
+Import a Claude Code JSONL session log. `--discover` lists available sessions in `~/.claude/projects/`. When the optional `agent_trace_core` extension is installed, imports use the Rust path only with redaction disabled and no active workspace; `AGENT_STRACE_NO_RUST=1` forces the Python fallback.
 
 ---
 

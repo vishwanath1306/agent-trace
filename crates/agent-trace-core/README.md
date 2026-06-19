@@ -70,6 +70,8 @@ let intact  = verify_hash_chain(&std::fs::read_to_string("events.ndjson")?);
 
 ## Compatibility with the Python implementation
 
+The Python package treats this extension as an optional accelerator for Claude JSONL import. `agent_trace.jsonl_import.import_jsonl()` uses it only when the module is installed, redaction is disabled, no workspace is active, and `AGENT_STRACE_NO_RUST` is unset; otherwise the standard-library Python importer remains the fallback.
+
 The serialized output matches `agent_trace.models` field-for-field (compact
 event lines, conditional key dropping, pretty meta), so files written here are
 read by the existing Python tooling and round-trip cleanly.
