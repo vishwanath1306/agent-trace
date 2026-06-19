@@ -56,10 +56,6 @@ fn take_chars(s: &str, n: usize) -> String {
     s.chars().take(n).collect()
 }
 
-fn char_len(s: &str) -> usize {
-    s.chars().count()
-}
-
 /// Extract text from message content (a string, or a list of content blocks).
 fn extract_text(content: &Value) -> String {
     match content {
@@ -135,12 +131,12 @@ fn extract_tool_results(content: &[Value]) -> Vec<ToolResult> {
     results
 }
 
-fn obj_get_str<'a>(v: &'a Value, key: &str) -> &'a str {
+fn get_str<'a>(v: &'a Value, key: &str) -> &'a str {
     v.get(key).and_then(Value::as_str).unwrap_or("")
 }
 
-fn usage_u64(usage: &Value, key: &str) -> u64 {
-    usage.get(key).and_then(Value::as_u64).unwrap_or(0)
+fn get_u64(v: &Value, key: &str) -> u64 {
+    v.get(key).and_then(Value::as_u64).unwrap_or(0)
 }
 
 /// First 12 hex chars of SHA-256(`s`).
@@ -199,7 +195,7 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
             continue;
         }
 
-        let ts = parse_iso_timestamp(obj_get_str(&raw, "timestamp"));
+        let ts = parse_iso_timestamp(get_str(&raw, "timestamp"));
         if first_ts == 0.0 && ts > 0.0 {
             first_ts = ts;
         }
@@ -207,9 +203,9 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
             last_ts = ts;
         }
         if session_id.is_empty() {
-            session_id = obj_get_str(&raw, "sessionId").to_string();
-            git_branch = obj_get_str(&raw, "gitBranch").to_string();
-            version = obj_get_str(&raw, "version").to_string();
+            session_id = get_str(&raw, "sessionId").to_string();
+            git_branch = get_str(&raw, "gitBranch").to_string();
+            version = get_str(&raw, "version").to_string();
         }
         entries.push(raw);
     }
@@ -234,8 +230,8 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
     let mut events: Vec<TraceEvent> = Vec::new();
 
     for (idx, raw) in entries.iter().enumerate() {
-        let entry_type = obj_get_str(raw, "type");
-        let ts = parse_iso_timestamp(obj_get_str(raw, "timestamp"));
+        let entry_type = get_str(raw, "type");
+        let ts = parse_iso_timestamp(get_str(raw, "timestamp"));
         let empty = json!({});
         let msg = match raw.get("message") {
             Some(m) if m.is_object() => m,
@@ -263,7 +259,7 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                 for tr in &tool_results {
                     let preview = if tr.content.is_empty() {
                         String::new()
-                    } else if char_len(&tr.content) > 2000 {
+                    } else if tr.content.chars().count() > 2000 {
                         format!("{}...", take_chars(&tr.content, 2000))
                     } else {
                         tr.content.clone()
@@ -280,8 +276,8 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                 if tool_results.is_empty() {
                     if let Some(tr_data) = raw.get("toolUseResult") {
                         if tr_data.is_object() {
-                            let stdout = obj_get_str(tr_data, "stdout");
-                            let stderr = obj_get_str(tr_data, "stderr");
+                            let stdout = get_str(tr_data, "stdout");
+                            let stderr = get_str(tr_data, "stderr");
                             if !stdout.is_empty() || !stderr.is_empty() {
                                 let mut result_text = take_chars(stdout, 500);
                                 if !stderr.is_empty() {
@@ -321,12 +317,12 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                     if is_sidechain {
                         data.insert("is_sidechain".into(), json!(true));
                     }
-                    let caller_type = obj_get_str(&tc.caller, "type");
+                    let caller_type = get_str(&tc.caller, "type");
                     if !caller_type.is_empty() {
                         data.insert("caller_type".into(), json!(caller_type));
                     }
                     if tc.name == "Agent" {
-                        let subagent = obj_get_str(&tc.input, "subagent_type");
+                        let subagent = get_str(&tc.input, "subagent_type");
                         if !subagent.is_empty() {
                             data.insert("subagent_type".into(), json!(subagent));
                         }
@@ -348,19 +344,20 @@ pub fn import_jsonl(path: &str, trace_dir: &str) -> io::Result<ImportSummary> {
                     ts,
                     new_id(),
                     session_id.clone(),
-                    json!({ "text": take_chars(&text_val, 2000), "model": obj_get_str(msg, "model") }),
+                    json!({ "text": take_chars(&text_val, 2000), "model": get_str(msg, "model") }),
                 ));
             }
 
             if usage.is_object() {
-                meta.total_tokens += usage_u64(&usage, "input_tokens")
-                    + usage_u64(&usage, "output_tokens")
-                    + usage_u64(&usage, "cache_creation_input_tokens")
-                    + usage_u64(&usage, "cache_read_input_tokens");
+                // TODO: Add token breakdown later (per-type tokens + model -> cost).
+                meta.total_tokens += get_u64(&usage, "input_tokens")
+                    + get_u64(&usage, "output_tokens")
+                    + get_u64(&usage, "cache_creation_input_tokens")
+                    + get_u64(&usage, "cache_read_input_tokens");
                 meta.llm_requests += 1;
             }
         } else if entry_type == "system" {
-            if obj_get_str(raw, "subtype") == "turn_duration" {
+            if get_str(raw, "subtype") == "turn_duration" {
                 let duration_ms = raw.get("durationMs").and_then(Value::as_f64).unwrap_or(0.0);
                 if duration_ms != 0.0 {
                     meta.total_duration_ms += duration_ms;
