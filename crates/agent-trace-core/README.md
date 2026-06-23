@@ -9,6 +9,12 @@ The Rust core for [agent-trace](../../README.md). One crate, two surfaces:
   + [PyO3](https://pyo3.rs/)) — the module `agent_trace_core`. Compiled only
   under the `python` feature (which `extension-module` implies).
 
+## Why Rust
+
+The hot paths allocate one short-lived object per event in Python; in Rust
+those are stack values dropped deterministically, so memory stays bounded
+regardless of trace size and there's no GC.
+
 ### Feature flags
 
 | Feature | Effect |
