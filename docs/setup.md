@@ -182,6 +182,8 @@ agent-strace import --discover
 agent-strace import ~/.claude/projects/<project>/<session-id>.jsonl
 ```
 
+Import is always available through the Python parser. If the optional `agent_trace_core` Rust extension is installed, `agent-strace import` uses it only when redaction is disabled and no workspace is active; set `AGENT_STRACE_NO_RUST=1` to force the Python path.
+
 ---
 
 ## Option 2: MCP proxy (any MCP client)

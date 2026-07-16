@@ -1,0 +1,21 @@
+[build-system]
+requires = ["maturin>=1.7,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "agent-trace-core"
+description = "Rust core for agent-trace: trace models, NDJSON hash chain, and Claude Code import."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+dynamic = ["version"]
+
+[tool.maturin]
+# Pure-Rust extension; the module name must match the #[pymodule] in lib.rs.
+module-name = "agent_trace_core"
+# abi3 wheel -> one build works across CPython 3.10+.
+features = ["pyo3/abi3-py310", "extension-module"]
